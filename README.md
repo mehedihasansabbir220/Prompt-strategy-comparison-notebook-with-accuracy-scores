@@ -264,11 +264,12 @@ The same file also holds optional experiment defaults you can change without tou
 ```dotenv
 PROMPTBENCH_MODEL=gemini-2.5-flash
 PROMPTBENCH_TEMPERATURE=0.0
-PROMPTBENCH_SAMPLE_SIZE=100
+PROMPTBENCH_BENCHMARK_SAMPLE_SIZE=100
+PROMPTBENCH_DEV_SAMPLE_SIZE=10
 PROMPTBENCH_RANDOM_SEED=42
 ```
 
-Start with a small `PROMPTBENCH_SAMPLE_SIZE` (e.g. `10`) for your first run to confirm the
+Start with the small `PROMPTBENCH_DEV_SAMPLE_SIZE` subset for your first run to confirm the
 pipeline works end to end before spending quota on the full benchmark.
 
 ### 6. Launch the notebook
@@ -309,7 +310,7 @@ Earlier runs are never overwritten, so results stay comparable over time.
 | `ModuleNotFoundError: No module named 'src'` | Run commands from the repository root. `pytest` is configured with `pythonpath = ["."]` in `pyproject.toml`. |
 | Notebook imports fail but `pytest` passes | Wrong kernel selected — switch to **Python (promptbench)** (Step 6). |
 | Missing / invalid API key error | `.env` is absent, or still holds `your_api_key_here`. Re-check Step 5. |
-| Rate-limit or quota errors from Gemini | Lower `PROMPTBENCH_SAMPLE_SIZE`, or wait for the free-tier window to reset. Failed calls are counted and reported, not silently dropped. |
+| Rate-limit or quota errors from Gemini | Lower `PROMPTBENCH_BENCHMARK_SAMPLE_SIZE`, or wait for the free-tier window to reset. Failed calls are counted and reported, not silently dropped. |
 | IMDb download is slow or fails | It is a one-time cached download; re-run the cell to resume. |
 
 ---
