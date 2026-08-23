@@ -262,7 +262,7 @@ only — it is never hardcoded, printed, or written to logs or result files.
 The same file also holds optional experiment defaults you can change without touching code:
 
 ```dotenv
-PROMPTBENCH_MODEL=gemini-2.5-flash
+PROMPTBENCH_MODEL=gemini-3.5-flash
 PROMPTBENCH_TEMPERATURE=0.0
 PROMPTBENCH_BENCHMARK_SAMPLE_SIZE=100
 PROMPTBENCH_DEV_SAMPLE_SIZE=10
@@ -272,7 +272,21 @@ PROMPTBENCH_RANDOM_SEED=42
 Start with the small `PROMPTBENCH_DEV_SAMPLE_SIZE` subset for your first run to confirm the
 pipeline works end to end before spending quota on the full benchmark.
 
-### 6. Launch the notebook
+### 6. Verify the API connection
+
+One real request, to confirm the key, model and network path all work:
+
+```bash
+python -m src.llm.gemini
+python -m src.llm.gemini --strategy structured "Utterly tedious. I walked out."
+python -m src.llm.gemini --strategy reasoning --verbose "A masterpiece."
+```
+
+It prints the model, prompt size, latency, token usage and the raw response,
+and exits non-zero if the call fails. This is the only command in the project
+that contacts Google outside a benchmark run — the test suite never does.
+
+### 7. Launch the notebook
 
 ```bash
 # one-off: make this venv selectable as a Jupyter kernel
@@ -288,7 +302,7 @@ benchmark, metrics, charts, error analysis, findings, and limitations.
 
 The first run downloads IMDb from Hugging Face (a one-time download, cached locally).
 
-### 7. Read the results
+### 8. Read the results
 
 Each benchmark run writes its own immutable directory:
 
@@ -308,7 +322,7 @@ Earlier runs are never overwritten, so results stay comparable over time.
 | Symptom | Fix |
 | --- | --- |
 | `ModuleNotFoundError: No module named 'src'` | Run commands from the repository root. `pytest` is configured with `pythonpath = ["."]` in `pyproject.toml`. |
-| Notebook imports fail but `pytest` passes | Wrong kernel selected — switch to **Python (promptbench)** (Step 6). |
+| Notebook imports fail but `pytest` passes | Wrong kernel selected — switch to **Python (promptbench)** (Step 7). |
 | Missing / invalid API key error | `.env` is absent, or still holds `your_api_key_here`. Re-check Step 5. |
 | Rate-limit or quota errors from Gemini | Lower `PROMPTBENCH_BENCHMARK_SAMPLE_SIZE`, or wait for the free-tier window to reset. Failed calls are counted and reported, not silently dropped. |
 | IMDb download is slow or fails | It is a one-time cached download; re-run the cell to resume. |

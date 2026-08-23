@@ -114,7 +114,7 @@ ENV_API_KEY: Final[str] = "GEMINI_API_KEY"
 #: user who copied the template but never edited it gets a clear error.
 API_KEY_PLACEHOLDER: Final[str] = "your_api_key_here"
 
-DEFAULT_MODEL: Final[str] = "gemini-2.5-flash"
+DEFAULT_MODEL: Final[str] = "gemini-3.5-flash"
 DEFAULT_TEMPERATURE: Final[float] = 0.0
 DEFAULT_RANDOM_SEED: Final[int] = 42
 DEFAULT_DEV_SAMPLE_SIZE: Final[int] = 10
