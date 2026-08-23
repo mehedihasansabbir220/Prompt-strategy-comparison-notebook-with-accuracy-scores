@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "promptbench"
+version = "0.1.0"
+description = "An empirical study of prompt strategies for LLM sentiment classification."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Mohammed Mehedi" }]
+keywords = ["llm", "prompt-engineering", "evaluation", "benchmark", "sentiment-analysis"]
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# Kept in sync with requirements.txt. requirements.txt is the pinned entry point
+# for a plain `pip install -r`; this list makes the project installable as a package.
+dependencies = [
+    "pandas>=2.2",
+    "numpy>=1.26",
+    "datasets>=2.19",
+    "scikit-learn>=1.4",
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
+    "google-genai>=1.0",
+    "python-dotenv>=1.0",
+    "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.1",
+    "pytest-mock>=3.14",
+    "jupyterlab>=4.1",
+    "ipykernel>=6.29",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+# Allows `from src.<module> import ...` in tests without an editable install.
+pythonpath = ["."]
+addopts = "-ra --strict-markers"

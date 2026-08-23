@@ -1,0 +1,31 @@
+# PromptBench — runtime dependencies
+# Python 3.11+ required. Install with:  pip install -r requirements.txt
+
+# --- Data handling -----------------------------------------------------------
+pandas>=2.2
+numpy>=1.26
+
+# --- Dataset source ----------------------------------------------------------
+datasets>=2.19          # Hugging Face IMDb loader
+
+# --- Metrics -----------------------------------------------------------------
+scikit-learn>=1.4       # accuracy / precision / recall / F1 / confusion matrix
+
+# --- Visualization -----------------------------------------------------------
+matplotlib>=3.8
+seaborn>=0.13
+
+# --- LLM provider ------------------------------------------------------------
+google-genai>=1.0       # Gemini API client (google.genai)
+
+# --- Configuration & UX ------------------------------------------------------
+python-dotenv>=1.0      # loads GEMINI_API_KEY from .env (never committed)
+tqdm>=4.66              # benchmark progress bars
+
+# --- Notebook interface ------------------------------------------------------
+jupyterlab>=4.1
+ipykernel>=6.29
+
+# --- Testing -----------------------------------------------------------------
+pytest>=8.1
+pytest-mock>=3.14       # mocked LLM responses; tests never call the real API

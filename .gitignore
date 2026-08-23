@@ -1,0 +1,39 @@
+# --- Secrets (never commit) --------------------------------------------------
+.env
+.env.local
+*.key
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# --- Virtual environments ----------------------------------------------------
+.venv/
+venv/
+env/
+
+# --- Testing / tooling caches ------------------------------------------------
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+# --- Jupyter -----------------------------------------------------------------
+.ipynb_checkpoints/
+
+# --- Hugging Face dataset cache (large, re-downloadable) ---------------------
+.cache/
+data/cache/
+
+# --- OS / editor -------------------------------------------------------------
+.DS_Store
+.idea/
+.vscode/
+
+# NOTE: results/experiments/ is intentionally NOT ignored.
+# Completed benchmark runs are part of the project's reproducible record.
