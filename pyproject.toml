@@ -42,9 +42,15 @@ dev = [
     "streamlit>=1.40",
 ]
 
+[project.scripts]
+promptbench = "src.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["src*"]
+
+[tool.setuptools]
+py-modules = ["promptbench"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"

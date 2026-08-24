@@ -199,6 +199,35 @@ class TestStorageWrites:
         assert path.name == PREDICTIONS_FILENAME
         pd.testing.assert_frame_equal(storage.load_predictions(experiment_id), frame)
 
+    def test_numeric_columns_round_trip_as_numbers(
+        self, storage: ExperimentStorage
+    ) -> None:
+        """Reading them as text would make summing tokens concatenate digits."""
+        experiment_id = storage.create_experiment()
+        frame = pd.DataFrame(
+            {
+                "sample_id": ["s1", "s2"],
+                "raw_response": ["positive", ""],
+                "total_tokens": [242, 507],
+                "latency_seconds": [1.25, 0.8],
+            }
+        )
+        storage.save_predictions(experiment_id, frame)
+        loaded = storage.load_predictions(experiment_id)
+        assert loaded["total_tokens"].sum() == 749
+        assert loaded["latency_seconds"].mean() == pytest.approx(1.025)
+
+    def test_literal_na_text_is_not_treated_as_missing(
+        self, storage: ExperimentStorage
+    ) -> None:
+        """A model that answers "NA" said something; it is not a missing value."""
+        experiment_id = storage.create_experiment()
+        storage.save_predictions(
+            experiment_id,
+            pd.DataFrame({"sample_id": ["s1"], "raw_response": ["NA"], "total_tokens": [10]}),
+        )
+        assert storage.load_predictions(experiment_id)["raw_response"].iloc[0] == "NA"
+
     def test_empty_raw_response_round_trips_as_empty_string(
         self, storage: ExperimentStorage
     ) -> None:

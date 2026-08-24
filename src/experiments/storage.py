@@ -164,19 +164,32 @@ class ExperimentStorage:
             raise StorageError(f"No {CONFIG_FILENAME} in experiment {experiment_id!r}")
         return json.loads(path.read_text(encoding="utf-8"))
 
+    #: Columns that hold model text and must survive a round trip verbatim.
+    #: A converter bypasses pandas' NA handling for exactly these, so an empty
+    #: response stays ``""`` and a model that literally answered "NA" or "null"
+    #: is not silently turned into a missing value.
+    TEXT_COLUMNS: Final[tuple[str, ...]] = ("raw_response", "error")
+
     def load_predictions(self, experiment_id: str) -> pd.DataFrame:
         """Read back a stored ``predictions.csv``.
 
-        ``keep_default_na=False`` preserves empty raw responses as empty strings
-        rather than turning them into NaN, so a failed call round-trips exactly
-        as it was recorded.
+        Text columns are read verbatim; every other column keeps normal type
+        inference. Disabling NA handling for the whole file would read the
+        numeric columns as strings, which silently breaks any arithmetic done
+        on them downstream (summing tokens would concatenate digits).
         """
         path = self._require_experiment(experiment_id) / PREDICTIONS_FILENAME
         if not path.exists():
             raise StorageError(
                 f"No {PREDICTIONS_FILENAME} in experiment {experiment_id!r}"
             )
-        return pd.read_csv(path, keep_default_na=False, na_values=[])
+        header = pd.read_csv(path, nrows=0).columns
+        converters = {
+            column: (lambda value: value)
+            for column in self.TEXT_COLUMNS
+            if column in header
+        }
+        return pd.read_csv(path, converters=converters)
 
     def load_metrics(self, experiment_id: str) -> pd.DataFrame:
         """Read back a stored ``metrics.csv``."""
