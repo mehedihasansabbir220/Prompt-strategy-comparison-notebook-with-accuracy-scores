@@ -28,6 +28,8 @@ from src.evaluation.errors import (
 )
 from src.evaluation.metrics import (
     METRICS_COLUMNS,
+    evaluate_strategies,
+    rank_strategies,
     MetricsError,
     best_strategy,
     build_metrics_table,
@@ -543,3 +545,164 @@ class TestConsistencyBetweenModules:
             errors = extract_errors(predictions_frame, strategy=strategy)
             unparseable = (errors["error_type"] == ERROR_UNPARSEABLE).sum()
             assert counts["unknown"] == unparseable
+
+
+# ---------------------------------------------------------------------------
+# Scoring a predictions frame (Step 9)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def scored_frame() -> pd.DataFrame:
+    """Three strategies over the same 8 samples, with hand-checkable outcomes.
+
+    Ground truth       : P P P P N N N N
+    zero_shot  predicts: P P N N N N N N   -> 6 correct, 0 unknown
+    structured predicts: P P P P N N N N   -> 8 correct, 0 unknown
+    reasoning  predicts: P P U P N N N U   -> 6 correct, 2 unknown
+    """
+    actual = [POS] * 4 + [NEG] * 4
+    scripts = {
+        "zero_shot": [POS, POS, NEG, NEG, NEG, NEG, NEG, NEG],
+        "structured": [POS, POS, POS, POS, NEG, NEG, NEG, NEG],
+        "reasoning": [POS, POS, UNK, POS, NEG, NEG, NEG, UNK],
+    }
+    rows = []
+    for strategy, predicted in scripts.items():
+        for index, (truth, prediction) in enumerate(zip(actual, predicted, strict=True)):
+            rows.append(
+                {
+                    "strategy": strategy,
+                    "sample_id": f"test-{index:05d}",
+                    "actual_label": truth,
+                    "predicted_label": prediction,
+                    "latency_seconds": 0.1,
+                    "success": prediction != UNK or strategy == "reasoning",
+                }
+            )
+    return pd.DataFrame(rows)
+
+
+class TestEvaluateStrategies:
+    def test_one_row_per_strategy_in_execution_order(
+        self, scored_frame: pd.DataFrame
+    ) -> None:
+        metrics = evaluate_strategies(scored_frame)
+        assert metrics["strategy"].tolist() == ["zero_shot", "structured", "reasoning"]
+        assert list(metrics.columns) == list(METRICS_COLUMNS)
+
+    def test_hand_verified_zero_shot_row(self, scored_frame: pd.DataFrame) -> None:
+        # positive: TP=2 FP=0 FN=2 -> P 1.000 R 0.500 F1 0.667
+        # negative: TP=4 FP=2 FN=0 -> P 0.667 R 1.000 F1 0.800
+        row = evaluate_strategies(scored_frame).set_index("strategy").loc["zero_shot"]
+        assert row["correct"] == 6
+        assert row["accuracy"] == 0.75
+        assert row["precision_positive"] == 1.0
+        assert row["recall_positive"] == 0.5
+        assert row["precision_negative"] == pytest.approx(2 / 3, abs=1e-4)
+        assert row["recall_negative"] == 1.0
+        assert row["precision_macro"] == pytest.approx(0.8333, abs=1e-4)
+        assert row["recall_macro"] == 0.75
+        assert row["f1_macro"] == pytest.approx(0.7333, abs=1e-4)
+        assert row["error_rate"] == 0.25
+        assert row["unknown_rate"] == 0.0
+
+    def test_hand_verified_perfect_row(self, scored_frame: pd.DataFrame) -> None:
+        row = evaluate_strategies(scored_frame).set_index("strategy").loc["structured"]
+        assert row["accuracy"] == 1.0
+        assert row["f1_macro"] == 1.0
+        assert row["incorrect"] == 0
+
+    def test_hand_verified_row_with_unknowns(self, scored_frame: pd.DataFrame) -> None:
+        # Two unparseable answers, one per class.
+        # positive: TP=3 FP=0 FN=1 -> P 1.000 R 0.750 F1 0.857
+        # negative: TP=3 FP=0 FN=1 -> P 1.000 R 0.750 F1 0.857
+        row = evaluate_strategies(scored_frame).set_index("strategy").loc["reasoning"]
+        assert row["unknown"] == 2
+        assert row["unknown_rate"] == 0.25
+        assert row["accuracy"] == 0.75
+        assert row["accuracy_on_resolved"] == 1.0
+        assert row["precision_macro"] == 1.0
+        assert row["recall_macro"] == 0.75
+        assert row["f1_macro"] == pytest.approx(0.8571, abs=1e-4)
+
+    def test_average_latency_is_computed(self, scored_frame: pd.DataFrame) -> None:
+        metrics = evaluate_strategies(scored_frame)
+        assert metrics["avg_latency_seconds"].tolist() == pytest.approx([0.1] * 3)
+
+    def test_runtime_falls_back_to_summed_latency(
+        self, scored_frame: pd.DataFrame
+    ) -> None:
+        metrics = evaluate_strategies(scored_frame).set_index("strategy")
+        assert metrics.loc["zero_shot", "runtime_seconds"] == pytest.approx(0.8)
+
+    def test_injected_wall_clock_runtime_wins(self, scored_frame: pd.DataFrame) -> None:
+        metrics = evaluate_strategies(
+            scored_frame, runtime_by_strategy={"zero_shot": 42.0}
+        ).set_index("strategy")
+        assert metrics.loc["zero_shot", "runtime_seconds"] == 42.0
+        # Strategies without an injected value still fall back.
+        assert metrics.loc["structured", "runtime_seconds"] == pytest.approx(0.8)
+
+    def test_api_failures_are_counted_from_the_success_column(self) -> None:
+        frame = pd.DataFrame(
+            {
+                "strategy": ["zero_shot"] * 3,
+                "actual_label": [POS, POS, NEG],
+                "predicted_label": [POS, UNK, NEG],
+                "success": [True, False, True],
+            }
+        )
+        assert evaluate_strategies(frame)["api_failures"].iloc[0] == 1
+
+    def test_optional_columns_are_reported_as_unavailable(self) -> None:
+        # No latency column: report None rather than a plausible-looking zero.
+        frame = pd.DataFrame(
+            {
+                "strategy": ["zero_shot"] * 2,
+                "actual_label": [POS, NEG],
+                "predicted_label": [POS, NEG],
+            }
+        )
+        row = evaluate_strategies(frame).iloc[0]
+        assert row["avg_latency_seconds"] is None
+        assert row["runtime_seconds"] is None
+        assert row["api_failures"] == 0
+
+    def test_metrics_are_reproducible_from_predictions_alone(
+        self, scored_frame: pd.DataFrame
+    ) -> None:
+        first = evaluate_strategies(scored_frame)
+        second = evaluate_strategies(scored_frame)
+        pd.testing.assert_frame_equal(first, second)
+
+    def test_rejects_missing_columns(self) -> None:
+        with pytest.raises(MetricsError, match="missing column"):
+            evaluate_strategies(pd.DataFrame({"strategy": ["zero_shot"]}))
+
+    def test_rejects_an_empty_frame(self) -> None:
+        with pytest.raises(MetricsError, match="empty"):
+            evaluate_strategies(
+                pd.DataFrame(columns=["strategy", "actual_label", "predicted_label"])
+            )
+
+
+class TestRankStrategies:
+    def test_orders_by_f1_best_first(self, scored_frame: pd.DataFrame) -> None:
+        ranked = rank_strategies(evaluate_strategies(scored_frame))
+        assert ranked["strategy"].tolist() == ["structured", "reasoning", "zero_shot"]
+        assert ranked["rank"].tolist() == [1, 2, 3]
+
+    def test_ties_share_a_rank(self) -> None:
+        metrics = pd.DataFrame(
+            {"strategy": ["a", "b", "c"], "f1_macro": [0.9, 0.9, 0.5]}
+        )
+        ranked = rank_strategies(metrics)
+        assert ranked["rank"].tolist() == [1, 1, 3]
+
+    def test_supports_another_metric(self, scored_frame: pd.DataFrame) -> None:
+        ranked = rank_strategies(evaluate_strategies(scored_frame), metric="accuracy")
+        assert ranked["strategy"].iloc[0] == "structured"
+
+    def test_empty_input_is_handled(self) -> None:
+        assert rank_strategies(pd.DataFrame()).empty

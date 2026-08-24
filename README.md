@@ -110,6 +110,9 @@ promptbench/
 │   └── utils/
 │       ├── parsing.py            # Raw response -> positive | negative | unknown
 │       └── logging.py            # Structured logging; never logs secrets
+├── app/
+│   ├── streamlit_app.py          # Interactive dashboard; imports from src/
+│   └── ui.py                     # Caching and presentational helpers
 ├── notebooks/
 │   └── prompt_strategy_comparison.ipynb   # Research interface; imports from src/
 ├── tests/                        # pytest; no test performs a real API call
@@ -286,7 +289,27 @@ It prints the model, prompt size, latency, token usage and the raw response,
 and exits non-zero if the call fails. This is the only command in the project
 that contacts Google outside a benchmark run — the test suite never does.
 
-### 7. Launch the notebook
+### 7. Launch the dashboard (easiest way to explore)
+
+```bash
+streamlit run app/streamlit_app.py
+```
+
+Opens a local dashboard at <http://localhost:8501> with five tabs:
+
+| Tab | What it does |
+| --- | --- |
+| **Overview** | The research question, method, and every strategy's purpose and hypothesis |
+| **Prompt explorer** | Pick a strategy and a review, see the exact prompt, run one real call, and read the raw response next to the parsed label |
+| **Run benchmark** | Choose strategies, sample size and seed; see the call count and time estimate before spending quota; watch live progress |
+| **Results** | Metric table, all five charts, best strategy by F1, and full error analysis with CSV downloads |
+| **Past experiments** | Browse every stored run — immutable, never overwritten |
+
+The dashboard adds no evaluation logic of its own: prompts, provider calls, parsing,
+metrics and charts all come from `src/`, so what it shows is exactly what a scripted
+run produces.
+
+### 8. Launch the notebook
 
 ```bash
 # one-off: make this venv selectable as a Jupyter kernel
@@ -302,7 +325,7 @@ benchmark, metrics, charts, error analysis, findings, and limitations.
 
 The first run downloads IMDb from Hugging Face (a one-time download, cached locally).
 
-### 8. Read the results
+### 9. Read the results
 
 Each benchmark run writes its own immutable directory:
 
@@ -322,7 +345,7 @@ Earlier runs are never overwritten, so results stay comparable over time.
 | Symptom | Fix |
 | --- | --- |
 | `ModuleNotFoundError: No module named 'src'` | Run commands from the repository root. `pytest` is configured with `pythonpath = ["."]` in `pyproject.toml`. |
-| Notebook imports fail but `pytest` passes | Wrong kernel selected — switch to **Python (promptbench)** (Step 7). |
+| Notebook imports fail but `pytest` passes | Wrong kernel selected — switch to **Python (promptbench)** (Step 8). |
 | Missing / invalid API key error | `.env` is absent, or still holds `your_api_key_here`. Re-check Step 5. |
 | Rate-limit or quota errors from Gemini | Lower `PROMPTBENCH_BENCHMARK_SAMPLE_SIZE`, or wait for the free-tier window to reset. Failed calls are counted and reported, not silently dropped. |
 | IMDb download is slow or fails | It is a one-time cached download; re-run the cell to resume. |

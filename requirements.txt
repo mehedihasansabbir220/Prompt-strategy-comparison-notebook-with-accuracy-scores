@@ -22,9 +22,10 @@ google-genai>=1.0       # Gemini API client (google.genai)
 python-dotenv>=1.0      # loads GEMINI_API_KEY from .env (never committed)
 tqdm>=4.66              # benchmark progress bars
 
-# --- Notebook interface ------------------------------------------------------
+# --- Interfaces --------------------------------------------------------------
 jupyterlab>=4.1
 ipykernel>=6.29
+streamlit>=1.40         # interactive dashboard (app/streamlit_app.py)
 
 # --- Testing -----------------------------------------------------------------
 pytest>=8.1

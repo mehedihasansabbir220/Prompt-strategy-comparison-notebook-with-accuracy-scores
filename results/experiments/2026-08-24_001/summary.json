@@ -1,0 +1,48 @@
+{
+  "experiment_id": "2026-08-24_001",
+  "timestamp": "2026-08-24T08:43:38.618601+00:00",
+  "dev_mode": false,
+  "model": "gemini-3.5-flash",
+  "temperature": 0.0,
+  "dataset": {
+    "name": "imdb",
+    "sample_count": 4,
+    "random_seed": 42,
+    "sample_id_checksum": "3f372528d64ad1e7"
+  },
+  "selection_metric": "f1_macro",
+  "best_strategy": {
+    "strategy": "zero_shot",
+    "f1_macro": 1.0,
+    "accuracy": 1.0,
+    "precision_macro": 1.0,
+    "recall_macro": 1.0,
+    "unknown_rate": 0.0
+  },
+  "best_strategy_note": null,
+  "strategies_evaluated": 2,
+  "totals": {
+    "predictions": 8,
+    "correct": 7,
+    "incorrect": 1,
+    "unknown": 1,
+    "api_failures": 1,
+    "runtime_seconds": 23.9735
+  },
+  "ranking": [
+    {
+      "rank": 1,
+      "strategy": "zero_shot",
+      "f1_macro": 1.0,
+      "accuracy": 1.0,
+      "unknown_rate": 0.0
+    },
+    {
+      "rank": 2,
+      "strategy": "structured",
+      "f1_macro": 0.8333,
+      "accuracy": 0.75,
+      "unknown_rate": 0.25
+    }
+  ]
+}

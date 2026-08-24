@@ -69,6 +69,7 @@ METRICS_COLUMNS: tuple[str, ...] = (
     "support_positive",
     "api_failures",
     "runtime_seconds",
+    "avg_latency_seconds",
 )
 
 
@@ -294,6 +295,7 @@ def evaluate_predictions(
     strategy: str | None = None,
     api_failures: int = 0,
     runtime_seconds: float | None = None,
+    avg_latency_seconds: float | None = None,
 ) -> dict[str, Any]:
     """Score one strategy and return a single flat metrics record.
 
@@ -307,6 +309,7 @@ def evaluate_predictions(
             operational metric; the samples themselves still appear as unknown
             predictions, so counts stay consistent.
         runtime_seconds: Wall-clock time for the strategy's run.
+        avg_latency_seconds: Mean provider latency per call.
 
     Returns:
         A dict whose keys follow :data:`METRICS_COLUMNS`.
@@ -316,6 +319,7 @@ def evaluate_predictions(
     record.update(compute_classification_metrics(y_true, y_pred))
     record["api_failures"] = api_failures
     record["runtime_seconds"] = runtime_seconds
+    record["avg_latency_seconds"] = avg_latency_seconds
 
     if record["unknown"]:
         logger.info(
@@ -362,3 +366,106 @@ def best_strategy(metrics: pd.DataFrame, *, metric: str = "accuracy") -> str | N
         logger.info("No single best strategy on %r: tie between %s", metric, winners)
         return None
     return str(winners[0])
+
+
+# ---------------------------------------------------------------------------
+# Scoring a stored predictions frame
+# ---------------------------------------------------------------------------
+
+#: Columns :func:`evaluate_strategies` needs. Latency and success are optional:
+#: without them the operational columns are reported as unavailable rather than
+#: being filled with plausible-looking zeros.
+REQUIRED_PREDICTION_COLUMNS: tuple[str, ...] = (
+    "strategy",
+    "actual_label",
+    "predicted_label",
+)
+
+
+def evaluate_strategies(
+    predictions: pd.DataFrame,
+    *,
+    runtime_by_strategy: Mapping[str, float] | None = None,
+) -> pd.DataFrame:
+    """Score every strategy in a predictions frame.
+
+    Derived entirely from the predictions themselves, so ``metrics.csv`` can
+    always be regenerated from a stored ``predictions.csv`` — the metrics are a
+    view over the evidence, never a separate record that could drift from it.
+
+    Args:
+        predictions: Rows for one or more strategies, in the schema written by
+            the runner.
+        runtime_by_strategy: True wall-clock seconds per strategy, from the run
+            that produced the predictions. Without it, runtime falls back to the
+            sum of per-call latency, which excludes local overhead.
+
+    Returns:
+        One row per strategy, in first-appearance order (the configured
+        execution order, baseline first), with :data:`METRICS_COLUMNS`.
+
+    Raises:
+        MetricsError: If required columns are missing or the frame is empty.
+    """
+    missing = [
+        column
+        for column in REQUIRED_PREDICTION_COLUMNS
+        if column not in predictions.columns
+    ]
+    if missing:
+        raise MetricsError(
+            f"Predictions frame is missing column(s) {missing}. "
+            f"Found: {list(predictions.columns)}"
+        )
+    if predictions.empty:
+        raise MetricsError("Cannot score an empty predictions frame")
+
+    records: list[dict[str, Any]] = []
+    for strategy in predictions["strategy"].drop_duplicates():
+        rows = predictions[predictions["strategy"] == strategy]
+
+        # A row whose call failed is an API failure; a row whose call succeeded
+        # but could not be parsed is an unknown. The two are counted separately.
+        api_failures = (
+            int((~rows["success"].astype(bool)).sum())
+            if "success" in rows.columns
+            else 0
+        )
+        avg_latency = (
+            float(rows["latency_seconds"].mean())
+            if "latency_seconds" in rows.columns
+            else None
+        )
+        runtime = (runtime_by_strategy or {}).get(str(strategy))
+        if runtime is None and "latency_seconds" in rows.columns:
+            runtime = float(rows["latency_seconds"].sum())
+
+        records.append(
+            evaluate_predictions(
+                rows["actual_label"],
+                rows["predicted_label"],
+                strategy=str(strategy),
+                api_failures=api_failures,
+                runtime_seconds=runtime,
+                avg_latency_seconds=avg_latency,
+            )
+        )
+
+    return build_metrics_table(records)
+
+
+def rank_strategies(
+    metrics: pd.DataFrame, *, metric: str = "f1_macro"
+) -> pd.DataFrame:
+    """Return the strategies ordered by ``metric``, best first.
+
+    Ties keep their relative execution order, and the rank column shows equal
+    ranks for equal scores rather than inventing a winner.
+    """
+    if metrics.empty or metric not in metrics.columns:
+        return pd.DataFrame(columns=["rank", "strategy", metric])
+    ranked = metrics.sort_values(metric, ascending=False, kind="stable").reset_index(
+        drop=True
+    )
+    ranked.insert(0, "rank", ranked[metric].rank(ascending=False, method="min").astype(int))
+    return ranked

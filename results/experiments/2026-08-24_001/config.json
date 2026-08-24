@@ -1,0 +1,95 @@
+{
+  "experiment_id": "2026-08-24_001",
+  "timestamp": "2026-08-24T08:43:38.618601+00:00",
+  "dev_mode": false,
+  "runtime_seconds": 23.974,
+  "provider": {
+    "provider": "gemini",
+    "model": "gemini-3.5-flash",
+    "temperature": 0.0,
+    "max_output_tokens": 64,
+    "thinking_budget": 0,
+    "max_retries": 3
+  },
+  "configuration": {
+    "app_name": "PromptBench",
+    "model": "gemini-3.5-flash",
+    "temperature": 0.0,
+    "random_seed": 42,
+    "dev_sample_size": 10,
+    "benchmark_sample_size": 4,
+    "labels": [
+      "negative",
+      "positive"
+    ],
+    "results_dir": "/Users/mohammedmehedi/Documents/workspace/AI_LEARING_PROJECT/Prompt-strategy-comparison-notebook-with-accuracy-scores/results",
+    "prompt_strategies": [
+      "zero_shot",
+      "few_shot",
+      "role_based",
+      "structured",
+      "reasoning",
+      "combined"
+    ],
+    "log_level": "INFO"
+  },
+  "dataset": {
+    "name": "imdb",
+    "sample_count": 4,
+    "random_seed": 42,
+    "class_distribution": {
+      "negative": 2,
+      "positive": 2
+    },
+    "sample_id_checksum": "3f372528d64ad1e7",
+    "sample_ids": [
+      "test-08619",
+      "test-10276",
+      "test-13781",
+      "test-20488"
+    ]
+  },
+  "few_shot_examples": {
+    "count": 4,
+    "labels": [
+      "negative",
+      "positive",
+      "negative",
+      "positive"
+    ]
+  },
+  "prompt_strategies": [
+    {
+      "name": "zero_shot",
+      "description": "Direct instruction with no demonstrations, persona or output schema. The minimum prompt that still states the task unambiguously.",
+      "hypothesis": "Establishes the performance floor. Expected to be competent on clearly polarised reviews but weakest on mixed sentiment, and most prone to answering in a sentence instead of a label.",
+      "requires_examples": "False"
+    },
+    {
+      "name": "structured",
+      "description": "Demands one JSON object with a single 'sentiment' field as the whole response, with explicit rules against fences, prose and extra keys.",
+      "hypothesis": "Should minimise unparseable responses, which raises effective accuracy even if the underlying judgement is unchanged. The format constraint itself is not expected to improve classification quality.",
+      "requires_examples": "False"
+    }
+  ],
+  "run_stats": [
+    {
+      "strategy": "zero_shot",
+      "samples": 4,
+      "successful_calls": 4,
+      "api_failures": 0,
+      "unknown_predictions": 0,
+      "runtime_seconds": 13.658,
+      "total_tokens": 1277
+    },
+    {
+      "strategy": "structured",
+      "samples": 4,
+      "successful_calls": 3,
+      "api_failures": 1,
+      "unknown_predictions": 1,
+      "runtime_seconds": 10.316,
+      "total_tokens": 1231
+    }
+  ]
+}

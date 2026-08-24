@@ -39,6 +39,7 @@ dev = [
     "pytest-mock>=3.14",
     "jupyterlab>=4.1",
     "ipykernel>=6.29",
+    "streamlit>=1.40",
 ]
 
 [tool.setuptools.packages.find]
